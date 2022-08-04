@@ -6,6 +6,10 @@ package com.microsoft.aad.msal4j;
 import com.nimbusds.oauth2.sdk.auth.ClientAuthentication;
 import com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod;
 import com.nimbusds.oauth2.sdk.id.ClientID;
+import com.nimbusds.oauth2.sdk.util.StringUtils;
+import com.nimbusds.oauth2.sdk.auth.ClientSecretPost;
+import com.nimbusds.oauth2.sdk.auth.Secret;
+
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.CompletableFuture;
@@ -22,7 +26,7 @@ import static com.microsoft.aad.msal4j.ParameterValidationUtils.validateNotNull;
  */
 public class PublicClientApplication extends AbstractClientApplicationBase implements IPublicClientApplication {
 
-    private final ClientAuthenticationPost clientAuthentication;
+    private final ClientAuthentication clientAuthentication;
 
     @Override
     public CompletableFuture<IAuthenticationResult> acquireToken(UserNamePasswordParameters parameters) {
@@ -121,8 +125,16 @@ public class PublicClientApplication extends AbstractClientApplicationBase imple
         super(builder);
         validateNotBlank("clientId", clientId());
         log = LoggerFactory.getLogger(PublicClientApplication.class);
-        this.clientAuthentication = new ClientAuthenticationPost(ClientAuthenticationMethod.NONE,
-                new ClientID(clientId()));
+
+        if (builder.clientSecret != null && StringUtils.isNotBlank(builder.clientSecret.toString())) {
+            clientAuthentication = new ClientSecretPost(
+                    new ClientID(clientId()),
+                    new Secret(builder.clientSecret.clientSecret()));
+        }
+        else {
+            this.clientAuthentication = new ClientAuthenticationPost(ClientAuthenticationMethod.NONE,
+                    new ClientID(clientId()));
+        }
     }
 
     @Override
@@ -142,8 +154,23 @@ public class PublicClientApplication extends AbstractClientApplicationBase imple
 
     public static class Builder extends AbstractClientApplicationBase.Builder<Builder> {
 
+        private IClientSecret clientSecret;
+
         private Builder(String clientId) {
             super(clientId);
+        }
+
+        /**
+         * Specifies the client secret.
+         * Default value is null
+         *
+         * @param clientSecret the value of the client secret
+         * @return instance of the Builder on which method was called
+         */
+        public PublicClientApplication.Builder clientSecret(IClientSecret clientSecret) {
+            this.clientSecret = clientSecret;
+
+            return self();
         }
 
         @Override
